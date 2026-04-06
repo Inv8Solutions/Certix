@@ -20,6 +20,10 @@ const EventDetailsView = dynamic(() => import("./components/admin/EventDetailsVi
   loading: () => <section className="mt-4 rounded-3xl bg-[#f2f2f2] p-8 text-[#7b7b7b]">Loading event details...</section>,
 });
 
+const SettingsView = dynamic(() => import("./components/admin/SettingsView"), {
+  loading: () => <section className="rounded-3xl bg-[#f1f1f1] p-8 text-[#7b7b7b]">Loading settings...</section>,
+});
+
 export default function Home() {
   const [activeView, setActiveView] = useState<AdminView>("dashboard");
   const [currentStep, setCurrentStep] = useState(1);
@@ -66,6 +70,7 @@ export default function Home() {
             setActiveView("events");
             setSelectedEvent(null);
           }}
+          onSettings={() => setActiveView("settings")}
           onAddEvent={handleOpenBuilder}
         />
 
@@ -98,6 +103,10 @@ export default function Home() {
             onTemplateUpload={handleTemplateUpload}
             onContinue={handleContinue}
           />
+        ) : null}
+
+        {activeView === "settings" ? (
+          <SettingsView />
         ) : null}
       </div>
     </main>

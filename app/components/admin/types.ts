@@ -4,7 +4,7 @@ export type EventForm = {
   description: string;
 };
 
-export type AdminView = "dashboard" | "events" | "builder";
+export type AdminView = "dashboard" | "events" | "builder" | "settings";
 
 export type StatItem = {
   label: string;

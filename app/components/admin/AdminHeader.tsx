@@ -4,6 +4,7 @@ type AdminHeaderProps = {
   activeView: AdminView;
   onDashboard: () => void;
   onEvents: () => void;
+  onSettings: () => void;
   onAddEvent: () => void;
 };
 
@@ -19,7 +20,7 @@ function navButtonClass(isActive: boolean, isMuted?: boolean) {
   return "rounded-full px-6 py-2 text-[#202020]";
 }
 
-export default function AdminHeader({ activeView, onDashboard, onEvents, onAddEvent }: AdminHeaderProps) {
+export default function AdminHeader({ activeView, onDashboard, onEvents, onSettings, onAddEvent }: AdminHeaderProps) {
   return (
     <header className="mb-7 flex flex-wrap items-center justify-between gap-4">
       <div className="flex items-center gap-2">
@@ -42,7 +43,7 @@ export default function AdminHeader({ activeView, onDashboard, onEvents, onAddEv
             </button>
           </li>
           <li>
-            <button type="button" className={navButtonClass(false)}>
+            <button type="button" onClick={onSettings} className={navButtonClass(activeView === "settings")}>
               Settings
             </button>
           </li>
