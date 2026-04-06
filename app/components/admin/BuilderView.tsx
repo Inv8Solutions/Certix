@@ -1,16 +1,27 @@
-import type { ChangeEvent } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { ChangeEvent, PointerEvent as ReactPointerEvent } from "react";
 
-import type { EventForm, StepItem } from "./types";
+import type { CertificateNameField, EventForm, StepItem, SurveyQuestion, SurveyQuestionType } from "./types";
 
 type BuilderViewProps = {
   currentStep: number;
   steps: StepItem[];
   formData: EventForm;
   selectedTemplateName: string;
+  selectedTemplatePreviewUrl: string | null;
+  nameField: CertificateNameField;
+  surveyQuestions: SurveyQuestion[];
   onNameChange: (value: string) => void;
   onDateChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onTemplateUpload: (event: ChangeEvent<HTMLInputElement>) => void;
+  onAddQuestion: (type: SurveyQuestionType) => void;
+  onRemoveQuestion: (questionId: string) => void;
+  onQuestionPromptChange: (questionId: string, prompt: string) => void;
+  onQuestionOptionChange: (questionId: string, optionIndex: number, value: string) => void;
+  onAddOption: (questionId: string) => void;
+  onNameFieldChange: (next: CertificateNameField) => void;
+  isCreatingEvent: boolean;
   onContinue: () => void;
 };
 
@@ -19,12 +30,79 @@ export default function BuilderView({
   steps,
   formData,
   selectedTemplateName,
+  selectedTemplatePreviewUrl,
+  nameField,
+  surveyQuestions,
   onNameChange,
   onDateChange,
   onDescriptionChange,
   onTemplateUpload,
+  onAddQuestion,
+  onRemoveQuestion,
+  onQuestionPromptChange,
+  onQuestionOptionChange,
+  onAddOption,
+  onNameFieldChange,
+  isCreatingEvent,
   onContinue,
 }: BuilderViewProps) {
+  const previewRef = useRef<HTMLDivElement>(null);
+  const [isDraggingName, setIsDraggingName] = useState(false);
+
+  useEffect(() => {
+    if (!isDraggingName) {
+      return;
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const preview = previewRef.current;
+
+      if (!preview) {
+        return;
+      }
+
+      const rect = preview.getBoundingClientRect();
+      const relativeX = ((event.clientX - rect.left) / rect.width) * 100;
+      const relativeY = ((event.clientY - rect.top) / rect.height) * 100;
+
+      const clampedX = Math.min(92, Math.max(8, relativeX));
+      const clampedY = Math.min(92, Math.max(8, relativeY));
+
+      onNameFieldChange({ ...nameField, x: clampedX, y: clampedY });
+    };
+
+    const handlePointerUp = () => {
+      setIsDraggingName(false);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [isDraggingName, nameField, onNameFieldChange]);
+
+  const handleNamePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    setIsDraggingName(true);
+  };
+
+  const handleNameWheel = (event: React.WheelEvent<HTMLButtonElement>) => {
+    const direction = Math.sign(event.deltaY);
+
+    if (direction === 0) {
+      return;
+    }
+
+    const next = direction < 0 ? nameField.fontSize + 1 : nameField.fontSize - 1;
+    onNameFieldChange({
+      ...nameField,
+      fontSize: Math.max(12, Math.min(96, next)),
+    });
+  };
+
   return (
     <>
       <section className="mb-4 rounded-2xl bg-[#f1f1f1] px-3 py-3 sm:px-5">
@@ -77,9 +155,10 @@ export default function BuilderView({
           <button
             type="button"
             onClick={onContinue}
-            className="inline-flex items-center gap-2 rounded-full bg-[#15161b] px-7 py-3 text-sm font-medium text-white"
+            disabled={isCreatingEvent}
+            className="inline-flex items-center gap-2 rounded-full bg-[#15161b] px-7 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {currentStep === 4 ? "Create Event" : "Continue"}
+            {currentStep === 4 ? (isCreatingEvent ? "Creating..." : "Create Event") : "Continue"}
             <span aria-hidden="true" className="text-base leading-none">
               -&gt;
             </span>
@@ -161,43 +240,58 @@ export default function BuilderView({
 
             <div>
               <p className="mb-3 text-xs font-medium uppercase tracking-wide text-[#989898]">Certificate Preview</p>
-              <div className="overflow-hidden rounded-2xl border border-[#d4d4d4] bg-[linear-gradient(145deg,#f2f2f2,#e8e8e8)]">
-                <div className="relative min-h-85 px-6 py-8 sm:px-8 sm:py-10">
-                  <div className="absolute -left-8 -top-10 h-28 w-32 rotate-[-18deg] bg-[#2b8f73]/25" />
-                  <div className="absolute -right-8 -top-8 h-24 w-36 rotate-12 bg-[#126f79]/35" />
-                  <div className="absolute -bottom-10 -left-8 h-24 w-36 rotate-14 bg-[#14546f]/35" />
-                  <div className="absolute -bottom-8 -right-8 h-24 w-40 -rotate-12 bg-[#1f8f63]/30" />
+              <div
+                ref={previewRef}
+                className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-[#d4d4d4] bg-[linear-gradient(145deg,#f2f2f2,#e8e8e8)]"
+              >
+                {selectedTemplatePreviewUrl ? (
+                  <img
+                    src={selectedTemplatePreviewUrl}
+                    alt="Certificate template preview"
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                ) : (
+                  <>
+                    <div className="absolute -left-8 -top-10 h-28 w-32 rotate-[-18deg] bg-[#2b8f73]/25" />
+                    <div className="absolute -right-8 -top-8 h-24 w-36 rotate-12 bg-[#126f79]/35" />
+                    <div className="absolute -bottom-10 -left-8 h-24 w-36 rotate-14 bg-[#14546f]/35" />
+                    <div className="absolute -bottom-8 -right-8 h-24 w-40 -rotate-12 bg-[#1f8f63]/30" />
 
-                  <div className="relative mx-auto max-w-xl text-center">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#2f7d69]">Certificate</p>
-                    <h3 className="mt-2 text-4xl font-semibold tracking-wide text-[#1f5f4c] sm:text-5xl">OF RECOGNITION</h3>
-                    <p className="mt-4 text-xs text-[#608072]">This Certificate is Proudly Presented to</p>
-
-                    <div className="mx-auto mt-4 max-w-sm rounded-lg border border-[#9aa8a2] bg-white/70 px-4 py-2 text-sm text-[#3f4a45]">
-                      Participant Name
+                    <div className="absolute inset-0 px-6 py-6 text-center sm:px-8 sm:py-8">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#2f7d69]">Certificate</p>
+                      <h3 className="mt-2 text-3xl font-semibold tracking-wide text-[#1f5f4c] sm:text-4xl">OF RECOGNITION</h3>
+                      <p className="mt-3 text-xs text-[#608072]">This Certificate is Proudly Presented to</p>
                     </div>
+                  </>
+                )}
 
-                    <p className="mx-auto mt-5 max-w-2xl text-xs leading-5 text-[#3d5d51]">
-                      for outstanding achievement and impact during the event, with excellent collaboration,
-                      innovation, and commitment.
-                    </p>
+                <button
+                  type="button"
+                  onPointerDown={handleNamePointerDown}
+                  onWheel={handleNameWheel}
+                  className={`absolute z-20 -translate-x-1/2 -translate-y-1/2 cursor-grab rounded-lg border px-4 py-2 font-medium shadow-sm active:cursor-grabbing ${
+                    isDraggingName
+                      ? "border-[#ff5b2e] bg-[#fff2ed] text-[#ff5b2e]"
+                      : "border-[#9aa8a2] bg-white/85 text-[#3f4a45]"
+                  }`}
+                  style={{
+                    left: `${nameField.x}%`,
+                    top: `${nameField.y}%`,
+                    fontSize: `${nameField.fontSize}px`,
+                    lineHeight: 1,
+                  }}
+                >
+                  {formData.name || "Participant Name"}
+                </button>
 
-                    <div className="mt-10 grid grid-cols-2 gap-6 text-left text-[10px] text-[#33584f]">
-                      <div>
-                        <div className="mb-1 h-px w-full bg-[#89a99c]" />
-                        <p className="font-semibold uppercase">Dr. Helena D. Palaog</p>
-                        <p>Director, Innovation Office</p>
-                      </div>
-                      <div>
-                        <div className="mb-1 h-px w-full bg-[#89a99c]" />
-                        <p className="font-semibold uppercase">Dr. Arie M. Pumecha</p>
-                        <p>VP for Research and Innovation</p>
-                      </div>
-                    </div>
-                  </div>
+                <div className="pointer-events-none absolute bottom-3 right-3 rounded-md bg-black/55 px-2 py-1 text-[10px] text-white">
+                  Drag to reposition
+                </div>
+                <div className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-black/55 px-2 py-1 text-[10px] text-white">
+                  Scroll to resize ({nameField.fontSize}px)
                 </div>
               </div>
-              <p className="mt-3 text-center text-xs text-[#b1b1b1]">Click a field to select - drag to reposition</p>
+              <p className="mt-3 text-center text-xs text-[#b1b1b1]">Drag the name field to place it on your certificate.</p>
               {selectedTemplateName ? (
                 <p className="mt-2 text-center text-xs text-[#3e78d6]">Template: {selectedTemplateName}</p>
               ) : null}
@@ -205,68 +299,97 @@ export default function BuilderView({
           </section>
         ) : (
           <section>
-            <div className="space-y-4">
-              <article className="rounded-2xl border border-[#e6e6e6] bg-[#f4f4f4] px-4 py-4 sm:px-5">
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <span className="rounded-full bg-[#ffe7e3] px-3 py-1 text-xs font-medium text-[#ff5b2e]">Question 1</span>
-                  <span className="text-sm text-[#c1c1c1]">🗑</span>
-                </div>
-                <p className="text-[1.35rem] text-[#282828]">How would you rate this event overall?</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {Array.from({ length: 5 }).map((_, index) => (
-                    <button
-                      key={`rating-${index + 1}`}
-                      type="button"
-                      className="h-9 w-9 rounded-xl border border-[#dfdfdf] bg-[#f8f8f8] text-lg leading-none text-[#f2b04c]"
-                      aria-label={`Rate ${index + 1} star`}
-                    >
-                      ☆
-                    </button>
-                  ))}
-                </div>
-              </article>
+            {surveyQuestions.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-[#d7d7d7] bg-[#f7f7f7] px-5 py-8 text-center text-sm text-[#7f7f7f]">
+                No survey questions yet. Add your first question below.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {surveyQuestions.map((question, index) => (
+                  <article key={question.id} className="rounded-2xl border border-[#e6e6e6] bg-[#f4f4f4] px-4 py-4 sm:px-5">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <span className="rounded-full bg-[#ffe7e3] px-3 py-1 text-xs font-medium text-[#ff5b2e]">
+                        Question {index + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onRemoveQuestion(question.id)}
+                        className="rounded-full bg-[#f1dcd7] px-3 py-1 text-xs text-[#8b4a3a]"
+                      >
+                        Remove
+                      </button>
+                    </div>
 
-              <article className="rounded-2xl border border-[#e6e6e6] bg-[#f4f4f4] px-4 py-4 sm:px-5">
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <span className="rounded-full bg-[#ffe7e3] px-3 py-1 text-xs font-medium text-[#ff5b2e]">Question 2</span>
-                  <span className="text-sm text-[#c1c1c1]">🗑</span>
-                </div>
-                <p className="text-[1.35rem] text-[#282828]">What did you find most valuable about this event?</p>
-                <div className="mt-3 rounded-xl border border-[#dddddd] bg-[#f9f9f9] px-4 py-3 text-sm text-[#a1a1a1]">
-                  Participant&apos;s answer...
-                </div>
-              </article>
+                    <input
+                      type="text"
+                      value={question.prompt}
+                      onChange={(event) => onQuestionPromptChange(question.id, event.target.value)}
+                      placeholder="Write your question"
+                      className="w-full rounded-xl border border-[#dddddd] bg-[#f9f9f9] px-4 py-3 text-sm text-[#2a2a2a] outline-none placeholder:text-[#a1a1a1]"
+                    />
 
-              <article className="rounded-2xl border border-[#e6e6e6] bg-[#f4f4f4] px-4 py-4 sm:px-5">
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <span className="rounded-full bg-[#ffe7e3] px-3 py-1 text-xs font-medium text-[#ff5b2e]">Question 3</span>
-                  <span className="text-sm text-[#c1c1c1]">🗑</span>
-                </div>
-                <p className="text-[1.35rem] text-[#282828]">How did you hear about this event?</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span className="rounded-full border border-[#d8d8d8] bg-[#f8f8f8] px-4 py-2 text-xs text-[#7f7f7f]">Social Media</span>
-                  <span className="rounded-full border border-[#d8d8d8] bg-[#f8f8f8] px-4 py-2 text-xs text-[#7f7f7f]">Friend</span>
-                  <span className="rounded-full border border-[#d8d8d8] bg-[#f8f8f8] px-4 py-2 text-xs text-[#7f7f7f]">Email/Newsletter</span>
-                  <span className="rounded-full border border-[#d8d8d8] bg-[#f8f8f8] px-4 py-2 text-xs text-[#7f7f7f]">Others</span>
-                </div>
-              </article>
-            </div>
+                    {question.type === "rating" ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {Array.from({ length: question.scaleMax || 5 }).map((_, ratingIndex) => (
+                          <span
+                            key={`${question.id}-rating-${ratingIndex + 1}`}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#dfdfdf] bg-[#f8f8f8] text-lg leading-none text-[#f2b04c]"
+                          >
+                            ☆
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    {question.type === "text" ? (
+                      <div className="mt-3 rounded-xl border border-[#dddddd] bg-[#f9f9f9] px-4 py-3 text-sm text-[#a1a1a1]">
+                        Participant&apos;s answer...
+                      </div>
+                    ) : null}
+
+                    {question.type === "multiple_choice" ? (
+                      <div className="mt-3 space-y-2">
+                        {(question.options || []).map((option, optionIndex) => (
+                          <input
+                            key={`${question.id}-option-${optionIndex}`}
+                            type="text"
+                            value={option}
+                            onChange={(event) => onQuestionOptionChange(question.id, optionIndex, event.target.value)}
+                            className="w-full rounded-lg border border-[#dddddd] bg-[#f9f9f9] px-3 py-2 text-sm text-[#2d2d2d] outline-none"
+                          />
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => onAddOption(question.id)}
+                          className="rounded-full border border-[#d9d9d9] bg-[#f7f7f7] px-4 py-1.5 text-xs text-[#2d2d2d]"
+                        >
+                          + Add Option
+                        </button>
+                      </div>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+            )}
 
             <div className="mt-5 flex flex-wrap gap-3">
               <button
                 type="button"
+                onClick={() => onAddQuestion("rating")}
                 className="rounded-full border border-[#d9d9d9] bg-[#f7f7f7] px-5 py-2 text-sm text-[#2d2d2d]"
               >
                 + Rating Scale
               </button>
               <button
                 type="button"
+                onClick={() => onAddQuestion("text")}
                 className="rounded-full border border-[#d9d9d9] bg-[#f7f7f7] px-5 py-2 text-sm text-[#2d2d2d]"
               >
                 + Text Answer
               </button>
               <button
                 type="button"
+                onClick={() => onAddQuestion("multiple_choice")}
                 className="rounded-full border border-[#d9d9d9] bg-[#f7f7f7] px-5 py-2 text-sm text-[#2d2d2d]"
               >
                 + Multiple Choice

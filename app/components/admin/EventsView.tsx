@@ -15,6 +15,12 @@ export default function EventsView({ events, onSelectEvent }: EventsViewProps) {
       </div>
 
       <div>
+        {events.length === 0 ? (
+          <div className="px-6 py-12 text-center text-[#7b7b7b]">
+            No events found in Firestore yet.
+          </div>
+        ) : null}
+
         {events.map((event) => (
           <article
             key={event.id}

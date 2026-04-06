@@ -2,15 +2,16 @@ import type { StatItem } from "./types";
 
 type DashboardViewProps = {
   stats: StatItem[];
+  organizationName: string;
   onOpenBuilder: () => void;
 };
 
-export default function DashboardView({ stats, onOpenBuilder }: DashboardViewProps) {
+export default function DashboardView({ stats, organizationName, onOpenBuilder }: DashboardViewProps) {
   return (
     <>
       <section className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-[2rem] font-semibold leading-tight">Good morning, Inv8 Studio</h1>
+          <h1 className="text-[2rem] font-semibold leading-tight">Good morning, {organizationName}</h1>
           <p className="mt-1 text-sm text-[#666]">Manage and track all your certificate generation events</p>
         </div>
 

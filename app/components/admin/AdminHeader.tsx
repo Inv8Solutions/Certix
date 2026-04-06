@@ -6,6 +6,7 @@ type AdminHeaderProps = {
   onEvents: () => void;
   onSettings: () => void;
   onAddEvent: () => void;
+  onLogout: () => void;
 };
 
 function navButtonClass(isActive: boolean, isMuted?: boolean) {
@@ -20,7 +21,14 @@ function navButtonClass(isActive: boolean, isMuted?: boolean) {
   return "rounded-full px-6 py-2 text-[#202020]";
 }
 
-export default function AdminHeader({ activeView, onDashboard, onEvents, onSettings, onAddEvent }: AdminHeaderProps) {
+export default function AdminHeader({
+  activeView,
+  onDashboard,
+  onEvents,
+  onSettings,
+  onAddEvent,
+  onLogout,
+}: AdminHeaderProps) {
   return (
     <header className="mb-7 flex flex-wrap items-center justify-between gap-4">
       <div className="flex items-center gap-2">
@@ -57,9 +65,11 @@ export default function AdminHeader({ activeView, onDashboard, onEvents, onSetti
 
       <button
         type="button"
-        aria-label="Admin profile"
-        className="h-11 w-11 rounded-full bg-[#ff5b2e] ring-4 ring-[#e5e5e5]"
-      />
+        onClick={onLogout}
+        className="rounded-full bg-[#15161b] px-5 py-3 text-sm font-medium text-white"
+      >
+        Logout
+      </button>
     </header>
   );
 }
